@@ -1,7 +1,19 @@
 const JSZip = require("jszip")
 const fs = require("fs")
 
-const PROJECTNAME = "Butter Engine Release 1.2"
+/*
+save override
+
+vm.skibidi = vm.toJSON;
+vm.toJSON = (a, b) => {
+    b = b ?? {};
+    b.allowOptimization = false;
+    return vm.skibidi(a, b);
+};
+
+*/
+
+const PROJECTNAME = "Butter Engine Release 1.2 orphaned"
 
 const PATH = __dirname + "/" + PROJECTNAME + ".sb3";
 
@@ -12,35 +24,74 @@ let deleted = 0;
 let whatTheFuck = 0;
 let orphans = 0;
 
-function getParent(id, blocks) {
+function findVariableByName(name, target, project) {
+    const stage = project.targets.findIndex((t) => t.isStage)
+    let variable = null
+    let id = Object.keys(stage.variables).find((value) => stage.variables[value][0] === name) // look for the variable in the stage
+    if (!id) { // look for it as a list in the stage
+        id = Object.keys(stage.lists).find((value) => stage.lists[value][0] === name) 
+        variable = stage.lists[id]
+    }
+    else variable = stage.variables[id]
+    
+    if (!id) {
+        id = Object.keys(target.variables).find((value) => target.variables[value][0] === name) // look for the variable in the target
+        variable = target.variables[id]
+    }
+    if (!id) { // look for it as a list in the target
+        id = Object.keys(target.lists).find((value) => target.lists[value][0] === name)
+    }
+    
+    
+}
+
+function getOrphaned(id, blocks) {
     let check = blocks[id]?.parent
     let last = id
-
     let stack = []
-    let freaky = false
-    while (check) { // locate the top block in a given stack
-        freaky = false
+    
+    while (check && !blocks[check]?.orphaned && !blocks[last]?.orphaned) { // locate the top block in a given stack that isn't orphaned
         if (check && !Object.prototype.hasOwnProperty.call(blocks, check)) {
             // block is located in a different sprite, or it doesn't exist
             // console.log("😨 what", check)
-            freaky = true
-            break
+            return true
         }
+
+        
+        for (const input of Object.values(blocks[check].inputs)) {
+            if (input[1] && typeof input[1] === "string") {
+                if (!Object.prototype.hasOwnProperty.call(blocks, input[1])) return true // if one of its children doesn't exist it's probably broken
+                if (blocks[input[1]]?.parent !== check) return true // the child needs to confirm that this block is its parent
+                
+            }
+        }
+
+        // if the next block doesn't exist that's bad
+        if (blocks[check].next && !Object.prototype.hasOwnProperty.call(blocks, blocks[check].next)) return true
+
+        // the block's parent needs to say that this block is its child
+        // console.log(Object.values(blocks[blocks[check]?.parent] ?? {}))
+        const parent = blocks[check].parent
+        if (parent && blocks[parent]?.next !== check) {
+            const values = Object.values(blocks[parent]?.inputs ?? {})
+            // console.log((values[0] ?? []) [1], check)
+            if (!values.some((v) => v[1] && v[1] === check)) return true
+        }
+
+        if (stack.includes(check)) {
+            // a block in this stack is its own parent somehow, we need to keep it from getting stuck
+            return true
+        }
+
+
+
         last = check
         stack.push(last)
         check = blocks[check]?.parent
-        if (stack.includes(check)) {
-            // a block in this stack is its own parent somehow, we need to keep it from getting stuck
-            freaky = true
-            break
-        }
 
     }
 
-    return {
-        freaky: freaky,
-        id: last
-    }
+    return !HATOPCODES.includes(blocks[last]?.opcode)
 }
 
 (async () => {
@@ -57,94 +108,22 @@ function getParent(id, blocks) {
         console.log("Checking target " + target?.name + "...")
         const blocks = target.blocks
 
-        let restartIDs = []
-
-        function remove(id) {
-            let rTarget = target // local variable or something
-            if (!Object.prototype.hasOwnProperty.call(rTarget.blocks, id)) {
-                rTarget = project.targets.find((t) => Object.prototype.hasOwnProperty.call(t.blocks, id)) 
-                // sometimes the block is located in a different sprite, so we need to look for the id across all the sprites
-                // NOTE: the same block id can be in different sprites, so this might cause unforseen consequences(half life reference????)
-                if (!rTarget) { // id doesn't exist, all references to this id will be deleted during the higher recursion step
-                    return
-                }
-            }
-            const block = rTarget.blocks[id]
-
-            Object.keys(block.inputs).forEach((input) => {
-                // input[1] is probably the id, idk though
-                // sometimes a block might not actually be a parent, we need to check for this to avoid deleting every block(for some reason)
-                if (input[1] && typeof input[1] === "string" && rTarget.blocks[input[1]]?.parent === id ) {
-                    try {
-                        remove(input[1]) 
-                    }
-                    catch (error) {
-                        if (error instanceof RangeError) restartIDs.push(input[1]) // we reached the recursion limit, just push the id to a stack and we can restart
-                        else throw error // probably important
-                    }
-                }
-                else {
-                    // console.error("Freaky input", block, input)
-                }
-            })
-
-            // i'm like 60% sure block.fields is only used for menus that don't accept inputs
-            deleted++
-            delete rTarget.blocks[id]
-        }
-
         const keys = Object.keys(blocks)
         for (const id of keys) {
             if (Array.isArray(target.blocks[id])) {
                 // idk what these are but we're going to remove them anyways
-                // they're only present in the ghost block version
+                // they're only present in the ghost block version and they don't have any references to/from them
                 deleted++
                 delete target.blocks[id]
+                continue
             }
-            /*const block = target.blocks[id]
             
+            const orphaned = getOrphaned(id, blocks)
 
-            let check = block.parent
-            let last = id
+            if (orphaned) {
+                blocks[id].orphaned = true
 
-            let stack = []
-            let freaky = false
-            while (check) { // locate the top block in a given stack
-                freaky = false
-                if (check && !Object.prototype.hasOwnProperty.call(blocks, check)) {
-                    // block is located in a different sprite, or it doesn't exist
-                    // console.log("😨 what", check)
-                    whatTheFuck++
-                    freaky = true
-                    break
-                }
-                last = check
-                stack.push(last)
-                check = blocks[check]?.parent
-                if (stack.includes(check)) {
-                    // a block in this stack is its own parent somehow, we need to keep it from getting stuck
-                    // console.log("😨😨 what????", check)
-                    whatTheFuck++
-                    freaky = true
-                    break
-                }
-
-            }*/
-           const parent = getParent(id, blocks)
-
-            if (!HATOPCODES.includes(blocks[parent.id]?.opcode)/* && parent.freaky*/) {
-                // console.log(blocks[parent.id]?.opcode)
-                // console.log("found orphan:", last)
                 orphans++
-
-                // remove the orphan
-                remove(parent.id)
-                // if (parent.id === "i,") console.error("wdiuhaytgufgeh")
-                // break
-                while (restartIDs.length > 0) {
-                    remove(restartIDs.shift())
-                }
-                
             }
 
         }
@@ -152,14 +131,10 @@ function getParent(id, blocks) {
     })
 
 
-    console.log("Finished initial search, looking for remaining orphans...")
+    console.log("Finished checking targets, removing orphans...")
     project.targets.forEach((target) => {
         Object.keys(target.blocks).forEach((id) => {
-            if (id === "pc") {
-                console.log(target.blocks[id]?.parent, target.blocks[target.blocks[id]?.parent])
-            }
-            if (target.blocks[id]?.parent && !target.blocks[target.blocks[id]?.parent]) {
-                // console.log("Secondary cleanup deletion")
+            if (target.blocks[id].orphaned) {
                 deleted++
                 delete target.blocks[id]
             }
@@ -167,7 +142,7 @@ function getParent(id, blocks) {
     })
 
     // console.log("Extra freaky blocks found: ", whatTheFuck)
-    // console.log("Orphans found:", orphans)
+    console.log("Orphans found:", orphans)
     console.log("Deleted blocks:", deleted)
     console.log("Rezipping and writing...")
     data.file("project.json", JSON.stringify(project))
