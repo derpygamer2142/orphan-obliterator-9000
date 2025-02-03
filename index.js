@@ -13,7 +13,7 @@ vm.toJSON = (a, b) => {
 
 */
 
-const PROJECTNAME = "Butter Engine Release 1.2 orphaned"
+const PROJECTNAME = "Butter Engine Release 1.2"
 
 const PATH = __dirname + "/" + PROJECTNAME + ".sb3";
 
@@ -58,24 +58,31 @@ function getOrphaned(id, blocks) {
         }
 
         
-        for (const input of Object.values(blocks[check].inputs)) {
+        for (const input of Object.values(blocks[last].inputs)) {
             if (input[1] && typeof input[1] === "string") {
                 if (!Object.prototype.hasOwnProperty.call(blocks, input[1])) return true // if one of its children doesn't exist it's probably broken
-                if (blocks[input[1]]?.parent !== check) return true // the child needs to confirm that this block is its parent
+                if (blocks[input[1]]?.parent !== last) return true // the child needs to confirm that this block is its parent
                 
             }
         }
+        
+        if (blocks[last].next && blocks[blocks[last].next]?.parent !== last) { // again, the block's children need to confirm that this block is its parent
+            return true 
+        }
+
 
         // if the next block doesn't exist that's bad
-        if (blocks[check].next && !Object.prototype.hasOwnProperty.call(blocks, blocks[check].next)) return true
+        if (blocks[last].next && !Object.prototype.hasOwnProperty.call(blocks, blocks[last].next)) return true
+
+        
 
         // the block's parent needs to say that this block is its child
         // console.log(Object.values(blocks[blocks[check]?.parent] ?? {}))
-        const parent = blocks[check].parent
-        if (parent && blocks[parent]?.next !== check) {
+        const parent = blocks[last].parent
+        if (parent && blocks[parent]?.next !== last) {
             const values = Object.values(blocks[parent]?.inputs ?? {})
             // console.log((values[0] ?? []) [1], check)
-            if (!values.some((v) => v[1] && v[1] === check)) return true
+            if (!values.some((v) => v[1] && v[1] === last)) return true
         }
 
         if (stack.includes(check)) {
