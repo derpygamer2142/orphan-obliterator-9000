@@ -15,13 +15,13 @@ vm.toJSON = (a, b) => {
 
 const PROJECTNAME = "Butter Engine Release 1.2"
 
-const PATH = __dirname + "/" + PROJECTNAME + ".sb3";
+let PATH = process.argv[2] ?? __dirname + "/" + PROJECTNAME + ".sb3";
+
 
 // only from base palette
 const HATOPCODES = ["procedures_definition", "event_whenflagclicked", "event_whenkeypressed", "event_whenstageclicked", "event_whenthisspriteclicked", "event_whenbackdropswitchesto", "event_whengreaterthan", "event_whenbroadcastreceived", "control_start_as_clone"]
 
 let deleted = 0;
-let whatTheFuck = 0;
 let orphans = 0;
 
 function findVariableByName(name, target, project) {
@@ -103,7 +103,16 @@ function getOrphaned(id, blocks) {
 
 (async () => {
     console.log("Reading file...")
-    const data = await JSZip.loadAsync(fs.readFileSync(PATH))
+    let fileRead
+    try {
+        fileRead = fs.readFileSync(PATH)
+    }
+    catch (error) {
+        console.error("Failed to read file:", error)
+        console.error("Did you remember to pass in a file path?")
+        return
+    }
+    const data = await JSZip.loadAsync(fileRead)
 
     console.log("Parsing json...")
     const project = JSON.parse(await data.file("project.json").async("string"))
