@@ -1,4 +1,4 @@
-# Vacuum(or maybe Orphan Obliterator 9000, idk yet)
+# Orphan Obliterator 9000
 
 ## Usage
 
@@ -30,5 +30,3 @@ or alternatively put your project into the cloned folder, change the `PROJECTNAM
 - Click "Choose file"
 
 - Click "obliterate"
-
-- 
