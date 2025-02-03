@@ -6,9 +6,9 @@
 
 Clone this repository. If you're using the git CLI, run
 
-`git clone https://github.com/derpygamer2142/tw-ghost-fixer.git`
+`git clone https://github.com/derpygamer2142/orphan-obliterator-9000.git`
 
-On github desktop, idk man figure it out. The url is https://github.com/derpygamer2142/tw-ghost-fixer.git though.
+On github desktop, idk man figure it out. The url is https://github.com/derpygamer2142/orphan-obliterator-9000.git though.
 
 
 Then install any dependencies after opening the relevant folder with
@@ -25,7 +25,7 @@ or alternatively put your project into the cloned folder, change the `PROJECTNAM
 
 ### Web version
 
-- Go to https://derpygamer2142.github.io/placeholder
+- Go to https://derpygamer2142.github.io/orphan-obliterator-9000
 
 - Click "Choose file"
 
