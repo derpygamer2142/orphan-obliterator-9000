@@ -9,17 +9,25 @@
     <p>this will delete any blocks without a hat!!!!1! be careful!</p>
     <p>you will recieve no explanation as to what this is beyond it destroys orphans and ghosts</p>
 
-    <input type="file" accept=".zip,.sb3">
+    <input type="file" accept=".zip,.sb3" id="file">
+
+    <p>check to compress project</p>
+    <input type="checkbox" id="checkbox">
 
     <button id="obliterate" hidden>obliterate</button>
 
     <button id="download" hidden>download</button>
 
-    <p hidden></p>
+    <p hidden id="finish"></p>
 
     <style>
         body, html, input, button {
             font-family: "Comic Sans MS", Arial, Helvetica, sans-serif;
+        }
+
+        #checkbox {
+            width: 1vmax;
+            height: 1vmax;
         }
 
         /* button {
@@ -36,11 +44,14 @@
 
     <script src="./jszip.min.js"></script>
 
-    <script defer>
+    <script defer type="module">
+        import compress from "./twcompress.mjs"
+
         const obliterate = document.getElementById("obliterate")
         const download = document.getElementById("download")
-        const fileSelect = document.querySelector("input")
-        const finished = document.querySelector("p")
+        const fileSelect = document.getElementById("file")
+        const checkbox = document.getElementById("checkbox")
+        const finished = document.getElementById("finish")
         /*
         save override
 
@@ -193,9 +204,17 @@
             // console.log("Extra freaky blocks found: ", whatTheFuck)
             console.log("Orphans found:", orphans)
             console.log("Deleted blocks:", deleted)
+            
+
+            if (checkbox.checked) {
+                console.log("Compressing...")
+                compress(project)
+            }
+
+            const stringified = JSON.stringify(project)
             console.log("Rezipping and writing...")
-            data.file("project.json", JSON.stringify(project))
-            output = await data.generateAsync({ type: "blob" })
+            data.file("project.json", stringified)
+            output = await data.generateAsync({ type: "blob", compression: "DEFLATE" })
             download.hidden = false
 
             finished.innerHTML = `Finished in ${Date.now() - startTime}ms`

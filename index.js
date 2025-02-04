@@ -1,5 +1,6 @@
 const JSZip = require("jszip")
 const fs = require("fs")
+const compress = require("./twcompress.cjs")
 
 /*
 save override
@@ -15,6 +16,8 @@ vm.toJSON = (a, b) => {
 
 const PROJECTNAME = "Butter Engine Release 1.2"
 
+
+const COMPRESS = true // whether to compress the project
 let PATH = process.argv[2] ?? __dirname + "/" + PROJECTNAME + ".sb3";
 
 
@@ -161,8 +164,13 @@ function getOrphaned(id, blocks) {
     console.log("Orphans found:", orphans)
     console.log("Deleted blocks:", deleted)
     console.log("Rezipping and writing...")
+
+    if (COMPRESS) {
+        compress(project)
+    }
+
     data.file("project.json", JSON.stringify(project))
-    data.generateNodeStream({ type: "nodebuffer", streamFiles: true }).pipe(fs.createWriteStream(__dirname + "/" + PROJECTNAME + " PATCHED.sb3")).on("finish", () => {
+    data.generateNodeStream({ type: "nodebuffer", streamFiles: true, compression: "DEFLATE" }).pipe(fs.createWriteStream(__dirname + "/" + PROJECTNAME + " PATCHED.sb3")).on("finish", () => {
         console.log(`Finished in ${Date.now() - startTime}ms`)
     })
 
