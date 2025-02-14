@@ -154,6 +154,8 @@
         }, false)
 
         obliterate.addEventListener("click", async () => {
+            deleted = 0
+            orphans = 0
             console.log("Reading file...")
             let fileRead = fileSelect.files[0]
             const data = await JSZip.loadAsync(fileRead)
