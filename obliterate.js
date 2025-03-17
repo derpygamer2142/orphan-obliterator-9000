@@ -95,15 +95,14 @@ function getOrphaned(id, blocks) {
 }
 
 /**
- * 
+ * @param {import("jszip")} data
  * @param {Boolean} COMPRESS
  * @returns 
  */
-async function obliterate(project, COMPRESS) {
-    
+async function obliterate(data, COMPRESS) {
 
     console.log("Parsing json...")
-    project = JSON.parse(await project.file("project.json").async("string"))
+    const project = JSON.parse(await data.file("project.json").async("string"))
     
     console.log("Ready!")
     const startTime = Date.now()
