@@ -13,85 +13,80 @@ vm.toJSON = (a, b) => {
 */
 
 
-// only from base palette
-const HATOPCODES = ["procedures_definition", "event_whenflagclicked", "event_whenkeypressed", "event_whenstageclicked", "event_whenthisspriteclicked", "event_whenbackdropswitchesto", "event_whengreaterthan", "event_whenbroadcastreceived", "control_start_as_clone"]
 
 let deleted = 0;
-let orphans = 0;
+let totalBlocks = 0;
 
-function findVariableByName(name, target, project) {
-    const stage = project.targets.findIndex((t) => t.isStage)
-    let variable = null
-    let id = Object.keys(stage.variables).find((value) => stage.variables[value][0] === name) // look for the variable in the stage
-    if (!id) { // look for it as a list in the stage
-        id = Object.keys(stage.lists).find((value) => stage.lists[value][0] === name) 
-        variable = stage.lists[id]
-    }
-    else variable = stage.variables[id]
-    
-    if (!id) {
-        id = Object.keys(target.variables).find((value) => target.variables[value][0] === name) // look for the variable in the target
-        variable = target.variables[id]
-    }
-    if (!id) { // look for it as a list in the target
-        id = Object.keys(target.lists).find((value) => target.lists[value][0] === name)
-    }
-    
-    
-}
+/**
+ * 
+ * @param {Object<string, object>} blocks Target.blocks
+ * 
+ * @returns {Set<string>} IDs of orphans
+ */
+function getOrphaned(blocks) {
+    const checked = new Set(); // Opcodes that are reachable normally
+    const hats = new Set();
 
-function getOrphaned(id, blocks) {
-    let check = blocks[id]?.parent
-    let last = id
-    let stack = []
-    
-    while (check && !blocks[check]?.orphaned && !blocks[last]?.orphaned) { // locate the top block in a given stack that isn't orphaned
-        if (check && !Object.prototype.hasOwnProperty.call(blocks, check)) {
-            // block is located in a different sprite, or it doesn't exist
-            // console.log("😨 what", check)
-            return true
+    // Step 1 is to figure out which blocks are valid starting points
+    for (const [id, block] of Object.entries(blocks)) {
+        if (block.topLevel) {
+            hats.add(id)
         }
+    }
 
-        
-        for (const input of Object.values(blocks[last].inputs)) {
-            if (input[1] && typeof input[1] === "string") {
-                if (!Object.prototype.hasOwnProperty.call(blocks, input[1])) return true // if one of its children doesn't exist it's probably broken
-                if (blocks[input[1]]?.parent !== last) return true // the child needs to confirm that this block is its parent
-                
+    // Step 2 is to go through each hat and see what blocks it references.
+    // Since this is similar to how the compiler works, anything that doesn't get touched is probably screwy
+
+    const stack = Array.from(hats.values())
+
+    while (stack.length > 0) {
+        const id = stack.pop()
+        if (checked.has(id)) continue // In case of circular references
+
+        checked.add(id)
+        let node = blocks[id]
+        for (const input of Object.values(node.inputs ?? {})) {
+            if (Array.isArray(input)) {
+                // Weird compressed nonsense. I don't remember how this works, seems like the id goes in the second index?
+                if (typeof input[1] === "string") {
+                    if (Object.prototype.hasOwnProperty.call(blocks, input[1])) stack.push(input[1])
+                    else {
+                        console.warn(`Found EEEEEEVILLLLL block (referenced non-existent id)! ${id}`)
+                    }
+                }
+                else if (Array.isArray(input[1])) {
+                    if (input[1].length === 3 || input[1].length == 2) {
+                        // Compressed variable/text input? I really don't know
+                    }
+                    else {
+                        console.error(`ID ${id} has weird input:`, input)
+                    }
+                }
+                else {
+                    console.error(`ID ${id} has weird input:`, input)
+                }
+            }
+            else {
+                console.error(`Unhandled input on ${id}: `, input)
             }
         }
-        
-        if (blocks[last].next && blocks[blocks[last].next]?.parent !== last) { // again, the block's children need to confirm that this block is its parent
-            return true 
-        }
 
+        if (node.next) stack.push(node.next)
 
-        // if the next block doesn't exist that's bad
-        if (blocks[last].next && !Object.prototype.hasOwnProperty.call(blocks, blocks[last].next)) return true
-
-        
-
-        // the block's parent needs to say that this block is its child
-        // console.log(Object.values(blocks[blocks[check]?.parent] ?? {}))
-        const parent = blocks[last].parent
-        if (parent && blocks[parent]?.next !== last) {
-            const values = Object.values(blocks[parent]?.inputs ?? {})
-            // console.log((values[0] ?? []) [1], check)
-            if (!values.some((v) => v[1] && v[1] === last)) return true
-        }
-
-        if (stack.includes(check)) {
-            // a block in this stack is its own parent somehow, we need to keep it from getting stuck
-            return true
-        }
-
-        last = check
-        stack.push(last)
-        check = blocks[check]?.parent
-
+        // I don't think fields can have blocks
     }
 
-    return !HATOPCODES.includes(blocks[last]?.opcode)
+
+    const orphans = new Set()
+
+    // Step 3 is to go through every single block and see if it's been checked
+    for (const id of Object.keys(blocks)) {
+        if (!checked.has(id)) {
+            orphans.add(id)
+        }
+    }
+
+    return orphans
 }
 
 /**
@@ -108,45 +103,25 @@ async function obliterate(data, COMPRESS) {
     const startTime = Date.now()
 
     project.targets.forEach((target) => {
-        console.log("Checking target " + target?.name + "...")
-        const blocks = target.blocks
+        console.log(`Obliterating target ${target?.name}...`)
+        const blocks = new Set(Object.keys(target.blocks))
+        const orphans = getOrphaned(target.blocks)
+        totalBlocks += blocks.size
 
-        const keys = Object.keys(blocks)
-        for (const id of keys) {
-            if (Array.isArray(target.blocks[id])) {
-                // idk what these are but we're going to remove them anyways
-                // they're only present in the ghost block version and they don't have any references to/from them
-                deleted++
+        for (const id of blocks.values()) {
+            if (orphans.has(id)) {
                 delete target.blocks[id]
-                continue
+                deleted++
             }
-            
-            const orphaned = getOrphaned(id, blocks)
-
-            if (orphaned) {
-                blocks[id].orphaned = true
-
-                orphans++
-            }
-
         }
-        console.log("Finished target " + target?.name)
+        
+        console.log(`Finished obliterating target ${target?.name}`)
     })
 
-
-    console.log("Finished checking targets, removing orphans...")
-    project.targets.forEach((target) => {
-        Object.keys(target.blocks).forEach((id) => {
-            if (target.blocks[id].orphaned) {
-                deleted++
-                delete target.blocks[id]
-            }
-        })
-    })
 
     // console.log("Extra freaky blocks found: ", whatTheFuck)
-    console.log("Orphans found:", orphans)
-    console.log("Deleted blocks:", deleted)
+    console.log(`Found ${totalBlocks} total blocks`)
+    console.log(`Deleted ${deleted} blocks (${(100*deleted/totalBlocks).toFixed(2)}%)`)
     console.log("Rezipping and writing...")
 
     if (COMPRESS) {
@@ -154,6 +129,8 @@ async function obliterate(data, COMPRESS) {
     }
 
     data.file("project.json", JSON.stringify(project))
+
+    console.log(`Done in ${Date.now()-startTime}ms`)
 
     return data
 

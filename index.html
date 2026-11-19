@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -6,13 +7,19 @@
 </head>
 <body>
     <h3>orphan obliterator 9000</h3>
-    <p>this will delete any blocks without a hat!!!!1! be careful!</p>
-    <p>you will recieve no explanation as to what this is beyond it destroys orphans and ghosts</p>
+    <p><s>you will recieve no explanation as to what this is beyond it destroys orphans and ghosts</s></p>
+    <p>by popliar demand i will explain what this does. all of this information is likely outdated as of writing this, and it's probably even more outdated when you're reading it:</p>
+    <ul>
+        <li>As of 2025, <a href="https://github.com/scratchfoundation/scratch-blocks">scratch-blocks</a>(or maybe it's because of the scratch addon that lets you reorder inputs?) has a bug with custom blocks where the substack will be duplicated, but become disconnected from the hat, creating "ghost" or "orphan" blocks</li>
+        <li>If you upload a project with ghost blocks the Obliterator will try its best to delete them for you. It might not work, who knows.</li>
+        <li>Someone else made a project that does this same thing, theirs was better for a while but I think now we use a similar(or the same?) method and mine has a cooler name. I lost the link and forgot their name, if you find it please <a href="https://github.com/derpygamer2142/orphan-obliterator-9000/issues">make a github issue</a> so I can credit them.</li>
+        <li>If this works, <a href="https://derpygamer2142.com/contact">PLEASE SEND ME YOUR PROJECT</a>! I only have like 4 cases to test this on, and I'd like more!</li>
+    </ul>
 
     <input type="file" accept=".zip,.sb3" id="file">
 
-    <p>check to compress project</p>
-    <input type="checkbox" id="checkbox">
+    <p>check to compress project (you should keep this checked this; TurboWarp does this by default)</p>
+    <input type="checkbox" id="checkbox" checked="true">
 
     <button id="obliterate" hidden>obliterate</button>
 
@@ -83,7 +90,7 @@
             output = await data.generateAsync({ type: "blob", compression: "DEFLATE" })
             download.hidden = false
 
-            finished.innerHTML = `Finished in ${Date.now() - startTime}ms`
+            finished.innerHTML = `Finished in ${Date.now() - startTime}ms. Check console for information about how many blocks were removed.`
             finished.hidden = false
             console.log(`Finished in ${Date.now() - startTime}ms`)
             waiting.hidden = true

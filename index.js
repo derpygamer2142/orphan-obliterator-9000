@@ -2,12 +2,14 @@ import * as fs from "fs"
 import zip from "jszip"
 import obliterate from "./obliterate.js"
 
-const PROJECTNAME = "NES Emulator v1.0.0"
 const COMPRESS = true // whether to compress the project
-let PATH = process.argv[2] ?? __dirname + "/" + PROJECTNAME + ".sb3";
-const JSZip = new zip();
+if (process.argv.length < 3) console.error("Usage: node index.js my project with spaces in the name.sb3")
+else
 
 (async () => {
+    let PATH = process.argv.slice(2).join(" ")
+    const JSZip = new zip();
+
     const startTime = Date.now()
 
     console.log("Reading file...")
@@ -22,7 +24,8 @@ const JSZip = new zip();
     }
     const data = await obliterate(await JSZip.loadAsync(fileRead), COMPRESS)
     
-    data.generateNodeStream({ type: "nodebuffer", streamFiles: true, compression: "DEFLATE" }).pipe(fs.createWriteStream(import.meta.dirname + "/" + PROJECTNAME + " PATCHED.sb3")).on("finish", () => {
+    const outputPath = PATH.slice(0, PATH.lastIndexOf(".")) + " PATCHED" + PATH.slice(PATH.lastIndexOf("."))
+    data.generateNodeStream({ type: "nodebuffer", streamFiles: true, compression: "DEFLATE" }).pipe(fs.createWriteStream(outputPath)).on("finish", () => {
         console.log(`Finished in ${Date.now() - startTime}ms`)
     })
 })()
